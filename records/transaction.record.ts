@@ -1,15 +1,17 @@
-import {TransactionEntity} from "../types";
+import {NewAdEntity, TransactionEntity} from "../types";
 import {ValidationError} from "../utils/errors";
 import {OperationEntity} from "../types/transaction/operation-entity";
+import {pool} from "../utils/db";
+import {FieldPacket} from "mysql2";
 
-interface NewAdEntity extends Omit<TransactionEntity, 'id'> {
-    id?: string;
-}
+
+
+type TransactionRecordResults = [TransactionEntity[], FieldPacket[]];
 
 export class TransactionRecord implements TransactionEntity {
     public id: string;
     public operation: OperationEntity;
-    public date: string;
+    public date: Date;
     public amount: number;
     public description: string;
 
@@ -22,14 +24,15 @@ export class TransactionRecord implements TransactionEntity {
             throw new ValidationError('Opis nie może przekraczać 100 znaków.');
         }
 
-        if (!obj.date || obj.date.length > 10){
-            throw new ValidationError('Data nie może być pusta, ani przekraczać 10 znaków')
+        if (!obj.date){
+            throw new ValidationError('Data nie może być pusta')
         }
 
         // if (!obj.operation || obj.operation !== 'income' || obj.operation !== 'expense' ){
         //     throw new ValidationError('Operacja musi być równa "income" lub "expense"')
         // }
 
+        this.id = obj.id;
         this.operation = obj.operation;
         this.date = obj.date;
         this.amount = obj.amount;
@@ -37,6 +40,18 @@ export class TransactionRecord implements TransactionEntity {
 
     }
 
+    static async getOne(id: string): Promise<TransactionRecord | null> {
+        const [results] = await pool.execute("SELECT * FROM `transactions` WHERE `id` = :id", {
+            id,
+        }) as TransactionRecordResults;
+
+        const [resultsSecond] = await pool.execute("SELECT * FROM `transactions` WHERE `date` < '2022-06-23'") as TransactionRecordResults;
+
+        console.log(resultsSecond[0])
+        // console.log(results[0].date.toISOString().split('T')[0])
+
+        return results.length === 0 ? null : new TransactionRecord(results[0]);
+    }
 
 }
 
