@@ -3,7 +3,7 @@ import {OperationEntity} from "../types/transaction/operation-entity";
 
 const defaultObj = {
     operation: OperationEntity.Expense,
-    date: "2022-06-29",
+    date: new Date("2022-06-29"),
     amount: 37,
     description: "GigaBuła z Adasiem",
 }
@@ -20,6 +20,7 @@ test('Validates invalid amount', ()=> {
     //     ...defaultObj,
     //     amount: 0,
     // });
+
 
     expect(()=>new TransactionRecord({
         ...defaultObj,
