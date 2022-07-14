@@ -1,8 +1,9 @@
 import {NewAdEntity, TransactionEntity} from "../types";
 import {ValidationError} from "../utils/errors";
+import {v4 as uuid} from "uuid";
 import {OperationEntity} from "../types/transaction/operation-entity";
 import {pool} from "../utils/db";
-import {FieldPacket} from "mysql2";
+import {FieldPacket, ResultSetHeader} from "mysql2";
 
 
 
@@ -17,7 +18,7 @@ export class TransactionRecord implements TransactionEntity {
 
     constructor(obj: NewAdEntity) {
         if (obj.amount <= 0 || obj.amount > 9999999){
-            throw new ValidationError('Kwota nie może być równa oraz mniejsza niż 0 lub większa niż 9999999');
+            throw new ValidationError('Kwota musi być większa niż 0 oraz mniejsza niż 1000000');
         }
 
         if (obj.description.length > 100){
@@ -27,10 +28,6 @@ export class TransactionRecord implements TransactionEntity {
         if (!obj.date){
             throw new ValidationError('Data nie może być pusta')
         }
-
-        // if (!obj.operation || obj.operation !== 'income' || obj.operation !== 'expense' ){
-        //     throw new ValidationError('Operacja musi być równa "income" lub "expense"')
-        // }
 
         this.id = obj.id;
         this.operation = obj.operation;
@@ -45,21 +42,50 @@ export class TransactionRecord implements TransactionEntity {
             id,
         }) as TransactionRecordResults;
 
-        const [resultsSecond] = await pool.execute("SELECT * FROM `transactions` WHERE `date` < '2022-06-23'") as TransactionRecordResults;
+        const newResult = {
+            ...results[0],
+            date: new Date( results[0].date.getTime() - results[0].date.getTimezoneOffset()*60*1000),
+        };
 
-        console.log(resultsSecond[0])
-        // console.log(results[0].date.toISOString().split('T')[0])
+        return results.length === 0 ? null : new TransactionRecord(newResult);
+    }
 
-        return results.length === 0 ? null : new TransactionRecord(results[0]);
+    async insert(): Promise<string> {
+        if (!this.id) {
+            this.id = uuid();
+        }else{
+            throw new Error('Cannot insert something that is already inserted!')
+        }
+
+        await pool.execute("INSERT INTO `transactions`(`id`, `date`, `operation`, `description`, `amount`) VALUES(:id,:date, :operation, :description, :amount)",
+            this
+        );
+
+        return this.id;
+    };
+
+    async update(): Promise<number>{
+        const result = (await pool.execute("UPDATE `transactions` SET `date` = :date, `operation` = :operation, `description` = :description, `amount`=:amount WHERE `id` = :id",
+            this
+        )) as [ResultSetHeader, undefined];
+
+        return result[0].affectedRows;
+    }
+
+    static async findAll(): Promise<TransactionEntity[]> {
+
+        const [results] = (await pool.execute(
+            "SELECT * FROM `transactions` ORDER BY `date` DESC",
+        )) as TransactionRecordResults;
+
+        const newResults = results.map(result => {
+            return {
+                ...result,
+                date: new Date( result.date.getTime() - result.date.getTimezoneOffset()*60*1000),
+            }
+        });
+
+        return newResults;
     }
 
 }
-
-
-// data w bazie danych jest zapisywana za pomocą DATE w formacie 'rrrr-mm-dd', czyli zajmuje 10 znaków
-
-// const myBirth = new Date(1998, 2, 10)
-// wynik-> Tue Mar 10 1998 00:00:00 GMT+0100 (czas środkowoeuropejski standardowy)
-// myBirth.toJSON()
-// wynik-> '1998-03-09T23:00:00.000Z'
-// zajmuje 24 znaki
