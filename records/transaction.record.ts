@@ -15,6 +15,7 @@ export class TransactionRecord implements TransactionEntity {
     public date: Date;
     public amount: number;
     public description: string;
+    public categoryId: string;
 
     constructor(obj: NewAdEntity) {
         if (obj.amount <= 0 || obj.amount > 9999999){
@@ -34,6 +35,7 @@ export class TransactionRecord implements TransactionEntity {
         this.date = obj.date;
         this.amount = obj.amount;
         this.description = obj.description;
+        this.categoryId = obj.categoryId;
 
     }
 
@@ -47,6 +49,8 @@ export class TransactionRecord implements TransactionEntity {
             date: new Date( results[0].date.getTime() - results[0].date.getTimezoneOffset()*60*1000),
         };
 
+        console.log(newResult)
+
         return results.length === 0 ? null : new TransactionRecord(newResult);
     }
 
@@ -57,7 +61,7 @@ export class TransactionRecord implements TransactionEntity {
             throw new Error('Cannot insert something that is already inserted!')
         }
 
-        await pool.execute("INSERT INTO `transactions`(`id`, `date`, `operation`, `description`, `amount`) VALUES(:id,:date, :operation, :description, :amount)",
+        await pool.execute("INSERT INTO `transactions`(`id`, `date`, `operation`, `description`, `amount`, `categoryId`) VALUES(:id,:date, :operation, :description, :amount, :categoryId)",
             this
         );
 
@@ -65,7 +69,7 @@ export class TransactionRecord implements TransactionEntity {
     };
 
     async update(): Promise<number>{
-        const result = (await pool.execute("UPDATE `transactions` SET `date` = :date, `operation` = :operation, `description` = :description, `amount`=:amount WHERE `id` = :id",
+        const result = (await pool.execute("UPDATE `transactions` SET `date` = :date, `operation` = :operation, `description` = :description, `amount`=:amount, `categoryId`=:categoryId WHERE `id` = :id",
             this
         )) as [ResultSetHeader, undefined];
 

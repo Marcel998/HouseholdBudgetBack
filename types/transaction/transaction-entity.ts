@@ -10,4 +10,5 @@ export interface TransactionEntity {
     date: Date;
     amount: number;
     description: string;
+    categoryId: string;
 }
